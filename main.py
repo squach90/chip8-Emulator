@@ -64,6 +64,9 @@ class Chip8:
 # # Create emulator instance
 # chip8 = Chip8()
 
+# chip8.sound_timer = 2
+# chip8.delay_timer = 5
+
 # # Example program: sets I to 0x300 (opcode A300) then 0x500 (opcode A500)
 # program_bytes = bytes([
 #     0xA3, 0x00,   # Set I = 0x300
