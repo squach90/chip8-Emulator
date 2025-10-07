@@ -45,6 +45,21 @@ class Chip8:
             case (0xA000):
                 self.I = opcode & 0x0FFF
                 self.pc += 2  # avance le compteur de programme
+                print(f"SET I = {self.I:03X}")
+
+            case (0x0000):
+                match (opcode & 0x000F):
+                    case (0x0000):
+                        self.gfx = [0] * (64 * 32)
+                        self.pc += 2
+
+                    case (0x000E):
+                        self.sp -= 1
+                        self.pc = self.stack[self.sp]
+                        self.pc += 2
+                        print("RET (return from subroutine)")
+                    case (_):
+                        print(f"Unknown opcode [0x0000]: 0x{opcode:X}")
             case (_):  # équivalent du "default"
                 print(f"Unknown opcode: 0x{opcode:X}")
 
@@ -58,29 +73,22 @@ class Chip8:
             self.sound_timer -= 1
 
 # # === TEST ===   
-# # Example fontset (just zeros for testing, replace with actual fontset if needed)
-# fontset = [0] * 80  
+# Example fontset (just zeros for testing, replace with actual fontset if needed)
+fontset = [0] * 80  
 
-# # Create emulator instance
-# chip8 = Chip8()
+# Create emulator instance
+chip8 = Chip8()
 
-# chip8.sound_timer = 2
-# chip8.delay_timer = 5
+chip8.sound_timer = 2
+chip8.delay_timer = 5
 
-# # Example program: sets I to 0x300 (opcode A300) then 0x500 (opcode A500)
-# program_bytes = bytes([
-#     0xA3, 0x00,   # Set I = 0x300
-#     0xA5, 0x00    # Set I = 0x500
-# ])
+program_bytes = bytes([
+    0x00, 0xE0,  # Clear screen
+    0xA3, 0x00,  # Set I = 0x300
+])
+chip8.memory[0x200:0x200+len(program_bytes)] = program_bytes
 
-# # Load the program into memory
-# chip8.memory[0x200:0x200+len(program_bytes)] = program_bytes
-
-# # Check initial state
-# print(f"Initial I: {chip8.I}, PC: {chip8.pc}")
-
-# # Run multiple emulation cycles and print state each time
-# for cycle in range(4):
-#     print(f"\nCycle {cycle+1}:")
-#     chip8.emulation_cycle()
-#     print(f"I = {chip8.I:03X}, PC = {chip8.pc:03X}")
+for cycle in range(2):
+    print(f"\nCycle {cycle+1}:")
+    chip8.emulation_cycle()
+    print(f"I = {chip8.I:03X}, PC = {chip8.pc:03X}")

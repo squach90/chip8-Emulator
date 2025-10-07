@@ -1,1 +1,2 @@
 https://multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
+https://multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/#:~:text=case%200x0000%3A%20//%200x00E0%3A%20Clears%20the%20screen%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20//%20Execute%20opcode%0A%20%20%20%20%20%20break%3B
