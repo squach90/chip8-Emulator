@@ -13,6 +13,7 @@ class Chip8:
         self.stack = []
         self.sp = 0                       # Stack pointer
         self.key = [0] * 16               # HEX based keypad
+        self.memory[0x50:0x50 + len(fontset)] = fontset
 
         # Load fontset or other initialization if needed
         self.initialize()
@@ -39,16 +40,33 @@ class Chip8:
         self.memory[0x200:0x200+len(program)] = program
     
     def emulation_cycle(self):
+
+        sprites = {
+            0x0: [0xF0, 0x90, 0x90, 0x90, 0xF0],
+            0x1: [0x20, 0x60, 0x20, 0x20, 0x70],
+            0x2: [0xF0, 0x10, 0xF0, 0x80, 0xF0],
+            0x3: [0xF0, 0x10, 0xF0, 0x10, 0xF0],
+            0x4: [0x90, 0x90, 0xF0, 0x10, 0x10],
+            0x5: [0xF0, 0x80, 0xF0, 0x10, 0xF0],
+            0x6: [0xF0, 0x80, 0xF0, 0x90, 0xF0],
+            0x7: [0xF0, 0x10, 0x20, 0x40, 0x40],
+            0x8: [0xF0, 0x90, 0xF0, 0x90, 0xF0],
+            0x9: [0xF0, 0x90, 0xF0, 0x10, 0xF0],
+            0xA: [0xF0, 0x90, 0xF0, 0x90, 0x90],
+            0xB: [0xE0, 0x90, 0xE0, 0x90, 0xE0],
+            0xC: [0xF0, 0x80, 0x80, 0x80, 0xF0],
+            0xD: [0xE0, 0x90, 0x90, 0x90, 0xE0],
+            0xE: [0xF0, 0x80, 0xF0, 0x80, 0xF0],
+            0xF: [0xF0, 0x80, 0xF0, 0x80, 0x80],
+        }
+
+
         # Fetch
         opcode = (self.memory[self.pc] << 8) | self.memory[self.pc + 1]
 
 
         # Decode
         match (opcode & 0xF000):
-            case (0xA000):
-                self.I = opcode & 0x0FFF
-                self.pc += 2
-                print(f"SET I = {self.I:03X}")
 
             case (0x0000):
                 match (opcode & 0x000F):
@@ -62,6 +80,12 @@ class Chip8:
                         print("RET (return from subroutine)")
                     case (_):
                         print(f"Unknown opcode [0x0000]: 0x{opcode:X}")
+            
+            case (0x1000):
+                nnn = opcode & 0x0FFF  # extrait l'adresse NNN
+                self.pc = nnn           # saute à cette adresse
+                print(f"JP {nnn:03X}")
+
 
             case (0x2000):
                 self.stack.append(self.pc)
@@ -110,6 +134,24 @@ class Chip8:
                         self.memory[self.I + 2] = value % 10
                         self.pc += 2
                         print(f"BCD of V{x:X}={value} stored at I={self.I:03X}")
+
+                    case (0x000A):  # FX0A : wait for key press
+                        x = (opcode & 0x0F00) >> 8
+                        key_pressed = None
+                        for i, k in enumerate(self.key):
+                            if k != 0:
+                                self.V[x] = i
+                                key_pressed = i
+                                break
+
+                        if key_pressed is not None:
+                            # place le sprite correspondant dans la mémoire pour DRW
+                            self.I = 0x300
+                            self.memory[self.I:self.I+5] = bytes(sprites[key_pressed])
+                            self.pc += 2  # passe à l'instruction suivante
+                        print(f"FX0A: Waiting for key, V{x:X}={self.V[x]}")
+
+
                     case (_):
                         print(f"Unknown opcode [0xF000]: 0x{opcode:X}")
             
@@ -191,25 +233,43 @@ fontset = [0] * 80
 chip8 = Chip8()
 window = Chip8Window()
 
-# Exemple : programme test
-chip8.memory[0x200:0x200+4] = bytes([0x00, 0xE0, 0xA3, 0x00])
-chip8.V[1] = 254
-chip8.I = 500
+# # Exemple : programme test
+# chip8.memory[0x200:0x200+4] = bytes([0x00, 0xE0, 0xA3, 0x00])
+# chip8.V[1] = 254
+# chip8.I = 500
+# chip8.pc = 0x200
+
+# chip8.load_program("ibm-logo.ch8")
+
+# test_keys.ch8
+test_rom = bytes([
+    0x00, 0xE0,       # CLS : Clear screen (au début)
+    0x60, 0x00,       # LD V0, 0 : X
+    0x61, 0x00,       # LD V1, 0 : Y
+
+    # boucle :
+    0x00, 0xE0,       # CLS à chaque itération
+    0xF0, 0x0A,       # LD V0, K : attend une touche
+    0xD0, 0x15,       # DRW V0,V1,5 : dessine sprite
+    0x12, 0x06        # JP 0x206 : retourne au début de la boucle (juste avant CLS)
+])
+
+
+chip8.memory[0x200:0x200+len(test_rom)] = test_rom
 chip8.pc = 0x200
 
-chip8.load_program("ibm-logo.ch8")
+# Exemple de sprite à l'adresse 0x300 (5 lignes)
+chip8.memory[0x300:0x305] = bytes([
+    0b11110000,
+    0b10010000,
+    0b10010000,
+    0b10010000,
+    0b11110000,
+])
 
 running = True
 while running:
     chip8.emulation_cycle()
-    
-    # Dessine l'écran Chip8
     window.draw(chip8)
-    
-    # Affiche le texte dans la console
-    print(f"PC={chip8.pc:03X}, I={chip8.I:03X}, V1={chip8.V[1]:02X}, VF={chip8.V[0xF]}")
-    
-    # Gère les événements Pygame
-    running = window.handle_events()
-    
-    time.sleep(0.1)
+    running = window.handle_events(chip8)
+    time.sleep(0.05)
