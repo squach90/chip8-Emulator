@@ -1,6 +1,8 @@
 from window import Chip8Window
 import time
 
+fontset = [0] * 80
+
 class Chip8:
     def __init__(self):
         self.memory = [0] * 4096          # 4K memory
@@ -41,29 +43,8 @@ class Chip8:
     
     def emulation_cycle(self):
 
-        sprites = {
-            0x0: [0xF0, 0x90, 0x90, 0x90, 0xF0],
-            0x1: [0x20, 0x60, 0x20, 0x20, 0x70],
-            0x2: [0xF0, 0x10, 0xF0, 0x80, 0xF0],
-            0x3: [0xF0, 0x10, 0xF0, 0x10, 0xF0],
-            0x4: [0x90, 0x90, 0xF0, 0x10, 0x10],
-            0x5: [0xF0, 0x80, 0xF0, 0x10, 0xF0],
-            0x6: [0xF0, 0x80, 0xF0, 0x90, 0xF0],
-            0x7: [0xF0, 0x10, 0x20, 0x40, 0x40],
-            0x8: [0xF0, 0x90, 0xF0, 0x90, 0xF0],
-            0x9: [0xF0, 0x90, 0xF0, 0x10, 0xF0],
-            0xA: [0xF0, 0x90, 0xF0, 0x90, 0x90],
-            0xB: [0xE0, 0x90, 0xE0, 0x90, 0xE0],
-            0xC: [0xF0, 0x80, 0x80, 0x80, 0xF0],
-            0xD: [0xE0, 0x90, 0x90, 0x90, 0xE0],
-            0xE: [0xF0, 0x80, 0xF0, 0x80, 0xF0],
-            0xF: [0xF0, 0x80, 0xF0, 0x80, 0x80],
-        }
-
-
         # Fetch
         opcode = (self.memory[self.pc] << 8) | self.memory[self.pc + 1]
-
 
         # Decode
         match (opcode & 0xF000):
@@ -145,15 +126,21 @@ class Chip8:
                                 break
 
                         if key_pressed is not None:
-                            # place le sprite correspondant dans la mémoire pour DRW
-                            self.I = 0x300
-                            self.memory[self.I:self.I+5] = bytes(sprites[key_pressed])
-                            self.pc += 2  # passe à l'instruction suivante
+                            return
+                        else:
+                            self.pc += 2
+                            print(f"FX0A: Key pressed, V{x:X}={self.V[x]}")
                         print(f"FX0A: Waiting for key, V{x:X}={self.V[x]}")
 
 
                     case (_):
                         print(f"Unknown opcode [0xF000]: 0x{opcode:X}")
+            case (0xA000):  # ANNN : LD I, addr
+                nnn = opcode & 0x0FFF
+                self.I = nnn
+                self.pc += 2
+                print(f"LD I = {nnn:03X}")
+
             
             case (0xD000):
                 x = (opcode & 0x0F00) >> 8
@@ -181,6 +168,8 @@ class Chip8:
                             self.pc += 4  # skip next instruction
                         else:
                             self.pc += 2
+            
+            
 
             case (_):
                 print(f"Unknown opcode: 0x{opcode:X}")
@@ -194,78 +183,11 @@ class Chip8:
                 print("BEEP!")
             self.sound_timer -= 1
 
-# # # === TEST ===
-# # Example fontset (just zeros for testing, replace with actual fontset if needed)
-fontset = [0] * 80  
-
-# # Create emulator instance
-chip8 = Chip8()
-
-# chip8.sound_timer = 2
-# chip8.delay_timer = 5
-
-# # program_bytes = bytes([
-# #     0x00, 0xE0,  # Clear screen
-# #     0xA3, 0x00,  # Set I = 0x300
-# # ])
-# # chip8.memory[0x200:0x200+len(program_bytes)] = program_bytes
-
-# # for cycle in range(2):
-# #     print(f"\nCycle {cycle+1}:")
-# #     chip8.emulation_cycle()
-# #     print(f"I = {chip8.I:03X}, PC = {chip8.pc:03X}")
-
-# chip8.V[1] = 254
-# chip8.I = 500
-# chip8.memory[0x200] = 0xF1
-# chip8.memory[0x201] = 0x33
-# chip8.pc = 0x200
-
-# chip8.emulation_cycle()
-
-# print(chip8.memory[500:503])  # [2, 5, 4]
-
-# === TEST EMULATEUR CHIP8 ===
-
-# Example fontset (just zeros for testing, replace with actual fontset if needed)
-fontset = [0] * 80
-
 chip8 = Chip8()
 window = Chip8Window()
 
-# # Exemple : programme test
-# chip8.memory[0x200:0x200+4] = bytes([0x00, 0xE0, 0xA3, 0x00])
-# chip8.V[1] = 254
-# chip8.I = 500
-# chip8.pc = 0x200
-
-# chip8.load_program("ibm-logo.ch8")
-
-# test_keys.ch8
-test_rom = bytes([
-    0x00, 0xE0,       # CLS : Clear screen (au début)
-    0x60, 0x00,       # LD V0, 0 : X
-    0x61, 0x00,       # LD V1, 0 : Y
-
-    # boucle :
-    0x00, 0xE0,       # CLS à chaque itération
-    0xF0, 0x0A,       # LD V0, K : attend une touche
-    0xD0, 0x15,       # DRW V0,V1,5 : dessine sprite
-    0x12, 0x06        # JP 0x206 : retourne au début de la boucle (juste avant CLS)
-])
-
-
-chip8.memory[0x200:0x200+len(test_rom)] = test_rom
-chip8.pc = 0x200
-
-# Exemple de sprite à l'adresse 0x300 (5 lignes)
-chip8.memory[0x300:0x305] = bytes([
-    0b11110000,
-    0b10010000,
-    0b10010000,
-    0b10010000,
-    0b11110000,
-])
+rom_file = input("Nom du fichier .ch8 à lancer : ")
+chip8.load_program(rom_file)
 
 running = True
 while running:
