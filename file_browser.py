@@ -1,36 +1,51 @@
 import os
 from pathlib import Path
 import sys
-import termios
-import tty
+
+# Pour Windows, lecture des touches
+if os.name == "nt":
+    import msvcrt
+else:
+    import termios
+    import tty
 
 # Types de fichiers acceptés
 ROM_EXTENSIONS = ('.ch8', '.rom', '.bin', '.c8')
 
 def clear():
-    os.system('clear' if os.name == 'posix' else 'cls')
-
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def get_key():
     """Lit une touche sans attendre Enter."""
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        ch = sys.stdin.read(1)
-        if ch == '\x1b':  # Touche spéciale (flèche, etc.)
-            ch += sys.stdin.read(2)
-        return ch
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
+    if os.name == "nt":
+        ch = msvcrt.getch()
+        if ch == b'\xe0':  # Flèches spéciales
+            ch2 = msvcrt.getch()
+            return {
+                b'H': '\x1b[A',  # flèche haut
+                b'P': '\x1b[B',  # flèche bas
+                b'K': '\x1b[D',  # flèche gauche
+                b'M': '\x1b[C',  # flèche droite
+            }.get(ch2, '')
+        else:
+            return ch.decode(errors='ignore')
+    else:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+            if ch == '\x1b':
+                ch += sys.stdin.read(2)
+            return ch
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def list_directory(path: Path):
     """Retourne la liste des dossiers et fichiers (ROMs uniquement)."""
     items = []
     if path.parent != path:
         items.append(("..", True))
-    
     try:
         for entry in sorted(path.iterdir(), key=lambda x: x.name.lower()):
             if entry.is_dir():
@@ -39,9 +54,7 @@ def list_directory(path: Path):
                 items.append((entry.name, False))
     except PermissionError:
         pass
-    
     return items
-
 
 def select_rom_file():
     """Navigateur de fichiers dans le terminal"""
@@ -58,7 +71,6 @@ def select_rom_file():
         print("↑/↓ = navigate | Enter = select | Backspace = parent | Esc = quit")
         print("-" * 70)
 
-        # Affichage de la liste
         for i, (name, is_dir) in enumerate(items):
             prefix = "[DIR]" if is_dir else "[ROM]"
             if i == selected_index:
@@ -66,14 +78,13 @@ def select_rom_file():
             else:
                 print(f"  {prefix} {name}")
 
-        # Lire entrée utilisateur
         key = get_key()
 
         if key in ('\x1b[A', 'k'):  # flèche haut ou 'k'
             selected_index = (selected_index - 1) % len(items)
         elif key in ('\x1b[B', 'j'):  # flèche bas ou 'j'
             selected_index = (selected_index + 1) % len(items)
-        elif key in ('\x7f',):  # backspace
+        elif key in ('\x08',):  # backspace sous Windows
             if current_path.parent != current_path:
                 current_path = current_path.parent
                 selected_index = 0
@@ -90,11 +101,10 @@ def select_rom_file():
         elif key == '\x1b':  # échap
             return None
 
-
 # Test manuel
 if __name__ == "__main__":
     rom = select_rom_file()
     if rom:
-        print(f"✅ ROM sélectionnée : {rom}")
+        print(f"✅ ROM selected: {rom}")
     else:
-        print("❌ Aucune ROM sélectionnée.")
+        print("❌ No ROM selected.")
