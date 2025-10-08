@@ -346,35 +346,31 @@ class Chip8:
 
 def main():
     print("🎮 Chip-8 Emulator")
-    print("Sélectionnez un fichier ROM...")
+    print("Select a ROM...")
     
-    # Ouvrir le navigateur de fichiers
     rom_file = select_rom_file()
     
     if rom_file is None:
-        print("❌ Aucun fichier sélectionné. Fermeture...")
+        print("❌ No file has been selected. Closing...")
         sys.exit(0)
     
     print(f"✅ Chargement de: {rom_file}")
     
-    # Initialiser l'émulateur
     chip8 = Chip8()
     
     try:
         chip8.load_program(rom_file)
     except Exception as e:
-        print(f"❌ Erreur lors du chargement du ROM: {e}")
+        print(f"❌ Error when loading ROM: {e}")
         sys.exit(1)
     
-    # Créer la fenêtre
     window = Chip8Window()
     
-    # Boucle principale
     running = True
     timer_counter = 0
     
-    print("🚀 Émulation démarrée!")
-    print("Appuyez sur ÉCHAP ou fermez la fenêtre pour quitter.")
+    print("🚀 Emulation Start")
+    print("Press Ctrl+C or Close the window for quit")
     
     while running:
         running = window.handle_events(chip8)
@@ -391,7 +387,7 @@ def main():
         
         time.sleep(0.001)
     
-    print("👋 Fermeture de l'émulateur...")
+    print("👋 Closing of the emulator...")
     pygame.quit()
 
 
