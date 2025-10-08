@@ -1,14 +1,12 @@
 program = [
     0x00, 0xE0,       # CLS
-    0x60, 0x00,       # LD V0, 0
-    0x61, 0x00,       # LD V1, 0
-    0xA3, 0x00,       # LD I, 0x300 (adresse du sprite)
+    0xF0, 0x0A,       # FX0A : attendre une touche → stocke dans V0
+    0x61, 0x00,       # LD V1, 0 (coordonnée y)
+    0xF0, 0x29,       # FX29 : met I au sprite correspondant à V0
     0xD0, 0x15,       # DRW V0,V1,5
-    0x12, 0x00        # JP 0x200 (boucle)
+    0x12, 0x00        # JP 0x200 (reboucle sur le début)
 ]
 
-# 0x200 = 512, program length = 6 instructions = 12 bytes
-# 0x300 = 768
 padding = [0] * (0x300 - (0x200 + len(program)))
 sprites = [
     0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
@@ -29,8 +27,6 @@ sprites = [
     0xF0, 0x80, 0xF0, 0x80, 0x80   # F
 ]
 
-
-# --- Génération du fichier ROM ---
 filename = "test_keys.ch8"
 with open(filename, "wb") as f:
     f.write(bytes(program + padding + sprites))
