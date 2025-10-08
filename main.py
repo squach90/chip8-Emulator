@@ -72,6 +72,38 @@ class Chip8:
                 self.stack.append(self.pc)
                 self.pc = opcode & 0x0FFF
             
+            case (0x3000):
+                x = (opcode & 0x0F00) >> 8
+                nn = opcode & 0x00FF
+                if self.V[x] == nn:
+                    self.pc += 4  # saute l'instruction suivante
+                else:
+                    self.pc += 2  # passe simplement à la suivante
+                print(f"SE V{x:X}, {nn:02X} → {'skip' if self.V[x] == nn else 'no skip'}")
+            
+            case (0x4000):  # 4XNN : Skip next instruction if VX != NN
+                x = (opcode & 0x0F00) >> 8
+                nn = opcode & 0x00FF
+                if self.V[x] != nn:
+                    self.pc += 4  # saute l'instruction suivante
+                    skipped = True
+                else:
+                    self.pc += 2
+                    skipped = False
+                print(f"SNE V{x:X}, {nn:02X} → {'skip' if skipped else 'no skip'}")
+            
+            case (0x5000):  # 4XNN : Skip next instruction if VX != NN
+                x = (opcode & 0x0F00) >> 8
+                y = (opcode & 0x00F0) >> 4
+                nn = opcode & 0x00FF
+                if self.V[x] == self.V[y]:
+                    self.pc += 4  # saute l'instruction suivante
+                    skipped = True
+                else:
+                    self.pc += 2
+                    skipped = False
+                print(f"SE V{x:X}, V{y:X} → {'skip' if skipped else 'no skip'}")
+
             case (0x6000):  # 6XNN: LD Vx, NN
                 x = (opcode & 0x0F00) >> 8
                 nn = opcode & 0x00FF
@@ -89,6 +121,8 @@ class Chip8:
 
 
             case (0x8000):  # instructions 8XY?
+                x = (opcode & 0x0F00) >> 8
+                y = (opcode & 0x00F0) >> 4
                 match (opcode & 0x000F):
                     case (0x0004):  # ADD Vx, Vy
                         x = (opcode & 0x0F00) >> 8
@@ -102,9 +136,126 @@ class Chip8:
                         self.V[x] = (self.V[x] + self.V[y]) & 0xFF
                         self.pc += 2
                         print(f"ADD V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}, VF={self.V[0xF]}")
+                    
+                    case (0x0000):
+                       
+
+                        self.V[x] = self.V[y]
+                        self.pc += 2
+                    
+                    case (0x0001):  # 8XY1 : OR Vx, Vy
+                        self.V[x] |= self.V[y]
+                        self.pc += 2
+                        print(f"OR V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}")
+
+                    case (0x0002):
+                        self.V[x] &= self.V[y]
+                        self.pc += 2
+                        print(f"AND V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}")
+
+                    case (0x0003):
+                        self.V[x] ^= self.V[y]
+                        self.pc += 2
+                        print(f"XOR V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}")
+                    
+                    case (0x0004):
+                        if self.V[x] >= self.V[y]:
+                            self.V[0xF] = 1  # Pas d'underflow
+                        else:
+                            self.V[0xF] = 0  # Underflow
+
+                        self.V[x] = (self.V[x] + self.V[y]) & 0xFF  # garde sur 8 bits
+                        self.pc += 2
+                        print(f"ADD V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}, VF={self.V[0xF]}")
+
+                    case (0x0005):  # 8XY5 : SUB Vx, Vy
+                        if self.V[x] >= self.V[y]:
+                            self.V[0xF] = 1  # Pas d'underflow
+                        else:
+                            self.V[0xF] = 0  # Underflow
+
+                        self.V[x] = (self.V[x] - self.V[y]) & 0xFF  # garde sur 8 bits
+                        self.pc += 2
+                        print(f"SUB V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}, VF={self.V[0xF]}")
+                    
+                    case (0x0006):
+                        self.V[x] >>= 1
+                        self.pc += 2
+                    
+                    case (0x0007):
+                        if self.V[y] >= self.V[x]:
+                            self.V[0xF] = 1  # Pas d'underflow
+                        else:
+                            self.V[0xF] = 0  # Underflow
+
+                        self.V[x] = (self.V[y] - self.V[x]) & 0xFF  # garde sur 8 bits
+                        self.pc += 2
+                        print(f"SUB V{x:X}, V{y:X} → V{x:X}={self.V[x]:02X}, VF={self.V[0xF]}")
+                    
+                    case (0x000E):  # 8XYE : SHL Vx {, Vy} → Vx <<= 1
+                        self.V[0xF] = (self.V[x] & 0x80) >> 7  # bit le plus à gauche avant décalage
+                        self.V[x] = (self.V[x] << 1) & 0xFF    # décale et garde sur 8 bits
+                        self.pc += 2
+                        print(f"SHL V{x:X} → V{x:X}={self.V[x]:02X}, VF={self.V[0xF]}")
+
+
+
+
                     case (_):
                         print(f"Unknown opcode [0x8000]: 0x{opcode:X}")
+                    
+            
+            case (0x9000):  # 4XNN : Skip next instruction if VX != NN
+                x = (opcode & 0x0F00) >> 8
+                y = (opcode & 0x00F0) >> 4
+                nn = opcode & 0x00FF
+                if self.V[x] != self.V[y]:
+                    self.pc += 4  # saute l'instruction suivante
+                    skipped = True
+                else:
+                    self.pc += 2
+                    skipped = False
+                print(f"SE V{x:X}, V{y:X} → {'skip' if skipped else 'no skip'}")
 
+
+
+
+                    
+            case (0xA000):  # ANNN : LD I, addr
+                nnn = opcode & 0x0FFF
+                self.I = nnn
+                self.pc += 2
+                print(f"LD I = {nnn:03X}")
+
+            
+            case (0xD000):
+                x = self.V[(opcode & 0x0F00) >> 8] % 64
+                y = self.V[(opcode & 0x00F0) >> 4] % 32
+                height = opcode & 0x000F
+                self.V[0xF] = 0
+
+                for yline in range(height):
+                    pixel = self.memory[self.I + yline]
+                    for xline in range(8):
+                        if pixel & (0x80 >> xline):
+                            index = (x + xline + ((y + yline) * 64)) % len(self.gfx)
+                            if self.gfx[index] == 1:
+                                self.V[0xF] = 1
+                            self.gfx[index] ^= 1  # XOR pixel
+                
+                drawFlag = True
+                self.pc += 2
+            
+            case (0xE000):
+                x = (opcode & 0x0F00) >> 8
+                match (opcode & 0x00FF):
+                    case (0x9E):  # EX9E
+                        if self.key[self.V[x]] != 0:
+                            self.pc += 4  # skip next instruction
+                        else:
+                            self.pc += 2
+            
+            
             case (0xF000):
                 match (opcode & 0x00FF):
                     case (0x0033):  # FX33
@@ -131,45 +282,36 @@ class Chip8:
                             self.pc += 2
                             print(f"FX0A: Key pressed, V{x:X}={self.V[x]}")
                         print(f"FX0A: Waiting for key, V{x:X}={self.V[x]}")
+                    
+                    case (0x0029):
+                        x = (opcode & 0x0F00) >> 8
+                        self.I = 0x50 + (self.V[x] * 5)
+                        self.pc += 2
+                        print(f"FX29: Set I to sprite address for character {self.V[x]:X} → I={self.I:03X}")
+                    
+                    case (0x0055):
+                        x = (opcode & 0x0F00) >> 8
+                        for i in range(x + 1):  # de 0 à X inclus
+                            self.memory[self.I + i] = self.V[i] 
+                        self.pc += 2
 
+                    case (0x0065):
+                        x = (opcode & 0x0F00) >> 8  # récupère X depuis le opcode FX65
+                        for i in range(x + 1):  # de 0 à X inclus
+                            self.V[i] = self.memory[self.I + i]
+                        self.pc += 2
+                        print(f"FX65: Loaded V0..V{x:X} from memory starting at I={self.I:03X}")
+                    
+                    case (0x001E):
+                        x = (opcode & 0x0F00) >> 8 
+                        self.I += self.V[x]
+                        self.pc += 2
+                        print(f"ADD I{self.I} → Vx{self.V[x]}")
+
+                        
 
                     case (_):
                         print(f"Unknown opcode [0xF000]: 0x{opcode:X}")
-            case (0xA000):  # ANNN : LD I, addr
-                nnn = opcode & 0x0FFF
-                self.I = nnn
-                self.pc += 2
-                print(f"LD I = {nnn:03X}")
-
-            
-            case (0xD000):
-                x = (opcode & 0x0F00) >> 8
-                y = (opcode & 0x00F0) >> 4
-                height = opcode & 0x000F
-                self.V[0xF] = 0
-
-                for yline in range(height):
-                    pixel = self.memory[self.I + yline]
-                    for xline in range(8):
-                        if pixel & (0x80 >> xline):
-                            index = (x + xline + ((y + yline) * 64)) % len(self.gfx)
-                            if self.gfx[index] == 1:
-                                self.V[0xF] = 1
-                            self.gfx[index] ^= 1  # XOR pixel
-                
-                drawFlag = True
-                self.pc += 2
-            
-            case (0xE000):
-                x = (opcode & 0x0F00) >> 8
-                match (opcode & 0x00FF):
-                    case (0x9E):  # EX9E
-                        if self.key[self.V[x]] != 0:
-                            self.pc += 4  # skip next instruction
-                        else:
-                            self.pc += 2
-            
-            
 
             case (_):
                 print(f"Unknown opcode: 0x{opcode:X}")
