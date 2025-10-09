@@ -12,12 +12,13 @@ A simple **CHIP-8 emulator** written in Python.
 ## Requirements
 - Python 3.8 or higher  
 - Pygame
+- Numpy
 
 ## How to Run
 ```bash
 git clone https://github.com/yourusername/chip8-emulator.git
 cd chip8-emulator
-pip3 install pygame
+pip3 install pygame numpy
 python3 main.py
 ```
 

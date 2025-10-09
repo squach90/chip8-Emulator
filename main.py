@@ -3,6 +3,7 @@ import time
 import pygame
 from file_browser import select_rom_file
 import random
+import numpy as np
 
 
 # Chip-8 fontset (0-F)
@@ -39,6 +40,7 @@ class Chip8:
         self.sp = 0                       # Stack pointer
         self.key = [0] * 16               # HEX based keypad
         self.draw_flag = False
+        self.beep = pygame.mixer.Sound(self._generate_beep())
 
         # Load fontset
         self.initialize()
@@ -56,9 +58,18 @@ class Chip8:
         self.sp = 0
         self.key = [0] * 16
         self.draw_flag = False
+        self.beep = pygame.mixer.Sound(self._generate_beep())
 
         # Load fontset into memory at 0x50
         self.memory[0x50:0x50 + len(fontset)] = fontset
+
+    def _generate_beep(self, freq=440, duration=0.1, volume=0.5):
+        sample_rate = 44100
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        wave = np.sin(freq * t * 2 * np.pi)
+        audio = (wave * 32767).astype(np.int16)
+        sound = np.repeat(audio[:, np.newaxis], 2, axis=1)  # stéréo
+        return pygame.sndarray.make_sound(sound)
     
     def load_program(self, filename):
         with open(filename, "rb") as f:
@@ -302,8 +313,9 @@ class Chip8:
                     
                     case (0x0018):  # LD ST, Vx
                         self.sound_timer = self.V[x]
-                        print(f"LD ST, V{x:X} ({self.V[x]})")
+                        print(f"LD ST, V{x:X} ({self.V[x]}) → sound_timer={self.sound_timer}")
                         self.pc += 2
+
                     
                     case (0x001E):  # ADD I, Vx
                         self.I += self.V[x]
@@ -342,6 +354,14 @@ class Chip8:
             case (_):
                 print(f"Unknown opcode: 0x{opcode:X}")
                 self.pc += 2
+        
+        if self.delay_timer > 0:
+            self.delay_timer -= 1
+
+        if self.sound_timer > 0:
+            if self.sound_timer == 1:  # quand il passe à 1 → bip
+                self.beep.play()
+            self.sound_timer -= 1
 
 
 def main():
@@ -355,6 +375,9 @@ def main():
         sys.exit(0)
     
     print(f"✅ Chargement de: {rom_file}")
+
+    pygame.init()
+    pygame.mixer.init()
     
     chip8 = Chip8()
     
@@ -385,7 +408,7 @@ def main():
             window.draw(chip8)
             chip8.draw_flag = False
         
-        time.sleep(0.001)
+        time.sleep(0.01)
     
     print("👋 Closing of the emulator...")
     pygame.quit()
